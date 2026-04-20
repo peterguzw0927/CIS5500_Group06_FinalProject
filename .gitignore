@@ -1,0 +1,10 @@
+# Dependency directories
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Environment variables (for future use)
+.env
+
+# MacOS junk files
+.DS_Store
