@@ -10,42 +10,41 @@ const connection = new Pool({
   password: config.rds_password,
   port: config.rds_port,
   database: config.rds_db,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  ssl: { rejectUnauthorized: false },
 });
-connection.connect((err) => err && console.log(err));
+connection.connect((err) => err && console.log("Database connection error:", err));
 
-// Route 1: GET /flights/most_delayed
-const most_delayed = async function (req, res) {
-  // Extract pagination parameters or default to page 1, size 10
-  const page = req.query.page ? parseInt(req.query.page) : 1;
-  const pageSize = req.query.page_size ? parseInt(req.query.page_size) : 10;
-  const offset = (page - 1) * pageSize;
+// Helper function for Input Sanity
+const getPagination = (req) => {
+  const page = isNaN(req.query.page) ? 1 : Math.max(1, parseInt(req.query.page));
+  const pageSize = isNaN(req.query.page_size) ? 10 : Math.max(1, parseInt(req.query.page_size));
+  const limit = isNaN(req.query.limit) ? pageSize : Math.max(1, parseInt(req.query.limit));
+  return { limit: limit, offset: (page - 1) * limit };
+};
+
+// =========================================================================
+// SIMPLE / STATIC QUERIES
+// =========================================================================
+
+const most_delayed = async function(req, res) {
+  const { limit, offset } = getPagination(req);
+  const minDelay = isNaN(req.query.min_delay) ? 0 : Number(req.query.min_delay);
 
   connection.query(`
     SELECT flight_date, origin_code, origin_city, weather_delay_min, late_aircraft_delay_min, 
            (weather_delay_min+late_aircraft_delay_min) AS total_delay_min 
     FROM flight_clean
-    WHERE weather_delay_min > 0 OR late_aircraft_delay_min > 0
-    ORDER BY (weather_delay_min + late_aircraft_delay_min) DESC
-    LIMIT ${pageSize} OFFSET ${offset};
-  `, (err, data) => {
-    if (err) {
-      console.log(err);
-      res.json([]);
-    } else {
-      res.json(data.rows);
-    }
+    WHERE (weather_delay_min + late_aircraft_delay_min) > $1
+    ORDER BY total_delay_min DESC
+    LIMIT $2 OFFSET $3;
+  `, [minDelay, limit, offset], (err, data) => { 
+    if (err) console.error("❌ Error in most_delayed:", err.message);
+    res.json(err || !data ? [] : data.rows); 
   });
 }
 
-// Route 2: GET /airports/cancellations
-const cancellations = async function (req, res) {
-  const page = req.query.page ? parseInt(req.query.page) : 1;
-  const pageSize = req.query.page_size ? parseInt(req.query.page_size) : 10;
-  const offset = (page - 1) * pageSize;
-
+const cancellations = async function(req, res) {
+  const { limit, offset } = getPagination(req);
   connection.query(`
     SELECT origin_code, origin_city,
            COUNT(flight_id) as total_flights,
@@ -53,259 +52,256 @@ const cancellations = async function (req, res) {
     FROM flight_clean 
     GROUP BY origin_code, origin_city
     ORDER BY total_cancelled DESC
-    LIMIT ${pageSize} OFFSET ${offset};
-  `, (err, data) => {
-    if (err) {
-      console.log(err);
-      res.json([]);
-    } else {
-      res.json(data.rows);
-    }
+    LIMIT $1 OFFSET $2;
+  `, [limit, offset], (err, data) => { 
+    if (err) console.error("❌ Error in cancellations:", err.message);
+    res.json(err || !data ? [] : data.rows); 
   });
 }
 
-// Route 3: GET /businesses/category_distribution
-const category_distribution = async function (req, res) {
-  const page = req.query.page ? parseInt(req.query.page) : 1;
-  const pageSize = req.query.page_size ? parseInt(req.query.page_size) : 10;
-  const offset = (page - 1) * pageSize;
-
+const category_distribution = async function(req, res) {
+  const { limit, offset } = getPagination(req);
   connection.query(`
     SELECT category_name, COUNT(gmap_id) as num_businesses
     FROM rds_categories
     GROUP BY category_name
     ORDER BY num_businesses DESC
-    LIMIT ${pageSize} OFFSET ${offset};
-  `, (err, data) => {
-    if (err) {
-      console.log(err);
-      res.json([]);
-    } else {
-      res.json(data.rows);
-    }
+    LIMIT $1 OFFSET $2;
+  `, [limit, offset], (err, data) => { 
+    if (err) console.error("❌ Error in category_distribution:", err.message);
+    res.json(err || !data ? [] : data.rows); 
   });
 }
 
-// Route 4: GET /businesses/top_coffee_shops
-const top_coffee_shops = async function (req, res) {
-  const page = req.query.page ? parseInt(req.query.page) : 1;
-  const pageSize = req.query.page_size ? parseInt(req.query.page_size) : 10;
-  const offset = (page - 1) * pageSize;
-  const minReviews = req.query.min_reviews || 500;
-
+const top_coffee_shops = async function(req, res) {
+  const { limit, offset } = getPagination(req);
+  const minReviews = isNaN(req.query.min_reviews) ? 500 : Number(req.query.min_reviews);
+  
   connection.query(`
     SELECT b.name, b.address, b.avg_rating, b.num_of_reviews
     FROM rds_businesses b
     JOIN rds_categories c ON b.gmap_id = c.gmap_id
-    WHERE c.category_name = 'Coffee shop' AND b.num_of_reviews > ${minReviews}
+    WHERE c.category_name = 'Coffee shop' AND b.num_of_reviews > $1
     ORDER BY b.avg_rating DESC, b.num_of_reviews DESC
-    LIMIT ${pageSize} OFFSET ${offset};
-  `, (err, data) => {
-    if (err) {
-      console.log(err);
-      res.json([]);
-    } else {
-      res.json(data.rows);
-    }
+    LIMIT $2 OFFSET $3;
+  `, [minReviews, limit, offset], (err, data) => { 
+    if (err) console.error("❌ Error in top_coffee_shops:", err.message);
+    res.json(err || !data ? [] : data.rows); 
   });
 }
 
-// Route 5: GET /businesses/weekend_24hr
-const weekend_24hr = async function (req, res) {
-  const page = req.query.page ? parseInt(req.query.page) : 1;
-  const pageSize = req.query.page_size ? parseInt(req.query.page_size) : 10;
-  const offset = (page - 1) * pageSize;
+const top_places = async function(req, res) {
+  const { limit, offset } = getPagination(req);
+  const category = req.query.category || 'Coffee shop';
+  const state = req.query.state ? req.query.state.toUpperCase() : 'NY';
+  
+  connection.query(`
+    SELECT b.name, b.address, b.avg_rating, b.num_of_reviews
+    FROM rds_businesses b
+    JOIN rds_categories c ON b.gmap_id = c.gmap_id
+    WHERE c.category_name = $1 AND b.state = $2
+    ORDER BY b.avg_rating DESC, b.num_of_reviews DESC
+    LIMIT $3 OFFSET $4;
+  `, [category, state, limit, offset], (err, data) => { 
+    if (err) console.error("❌ Error in top_places:", err.message);
+    res.json(err || !data ? [] : data.rows); 
+  });
+}
 
+const weekend_24hr = async function(req, res) {
+  const { limit, offset } = getPagination(req);
   connection.query(`
     SELECT DISTINCT b.name, b.address, h.hours_text
     FROM rds_businesses b
     JOIN rds_hours h ON b.gmap_id = h.gmap_id
-    WHERE h.day IN ('Saturday', 'Sunday') AND h.hours_text LIKE '%Open 24 hours%'
-    LIMIT ${pageSize} OFFSET ${offset};
-  `, (err, data) => {
-    if (err) {
-      console.log(err);
-      res.json([]);
-    } else {
-      res.json(data.rows);
-    }
+    WHERE h.day IN ('Saturday', 'Sunday') AND h.hours_text ILIKE '%Open 24 hours%'
+    LIMIT $1 OFFSET $2;
+  `, [limit, offset], (err, data) => { 
+    if (err) console.error("❌ Error in weekend_24hr:", err.message);
+    res.json(err || !data ? [] : data.rows); 
   });
 }
 
-// Route 6: GET /flights/state_reliability
-const state_reliability = async function (req, res) {
-  const page = req.query.page ? parseInt(req.query.page) : 1;
-  const pageSize = req.query.page_size ? parseInt(req.query.page_size) : 10;
-  const offset = (page - 1) * pageSize;
-
+const state_reliability = async function(req, res) {
   connection.query(`
-    SELECT origin_state, 
-           AVG(weather_delay_min) as avg_weather_delay, 
-           AVG(late_aircraft_delay_min) as avg_late_delay
+    SELECT origin_state, AVG(weather_delay_min) as avg_weather_delay 
     FROM flight_clean
     GROUP BY origin_state
-    ORDER BY avg_weather_delay DESC
-    LIMIT ${pageSize} OFFSET ${offset};
-  `, (err, data) => {
-    if (err) {
-      console.log(err);
-      res.json([]);
-    } else {
-      res.json(data.rows);
-    }
-  });
-}
-
-// Route 7: GET /airports/stranded_guide (Complex)
-// Note: Kept without pagination because FlightsPage uses DataGrid which handles pagination client-side
-const stranded_guide = async function (req, res) {
-  const minDelay = req.query.min_delay || 60;
-  connection.query(`
-    SELECT a.AIRPORT, a.CITY, a.STATE, AVG(f.weather_delay_min) as avg_weather_delay,
-           COUNT(DISTINCT b.gmap_id) as nearby_excellent_hotels
-    FROM airports a
-    JOIN flight_clean f ON a.IATA_CODE = f.origin_code
-    JOIN rds_businesses b ON b.address LIKE '%' || a.CITY || ', ' || a.STATE || '%'
-    JOIN rds_categories c ON b.gmap_id = c.gmap_id
-    WHERE c.category_name IN ('Hotel', 'Motel') 
-      AND b.avg_rating >= 4.0 
-      AND f.weather_delay_min > ${minDelay}
-    GROUP BY a.AIRPORT, a.CITY, a.STATE
-    HAVING COUNT(DISTINCT b.gmap_id) < 5	
     ORDER BY avg_weather_delay DESC;
-  `, (err, data) => {
-    if (err) {
-      console.log(err);
-      res.json([]);
-    } else {
-      res.json(data.rows);
-    }
+  `, (err, data) => { 
+    if (err) console.error("❌ Error in state_reliability:", err.message);
+    res.json(err || !data ? [] : data.rows); 
   });
 }
 
-// Route 8: GET /airports/pa_restaurants (Complex)
-const pa_restaurants = async function (req, res) {
+// =========================================================================
+// COMPLEX QUERIES (Using your highly optimized Materialized Views)
+// =========================================================================
+
+// Query 1: Problematic Airports & Top Restaurants
+const stranded_guide = async function(req, res) {
+  console.log(`➡️  [ENDPOINT HIT] GET ${req.originalUrl}`);
+  const minRating = isNaN(req.query.rating) ? 4.5 : Number(req.query.rating);
+  const minReviews = isNaN(req.query.reviews) ? 500 : Number(req.query.reviews);
+  
   connection.query(`
-    WITH airport_restaurants AS (
-        SELECT
-            a.iata_code,
-            a.airport,
-            a.city,
-            COUNT(DISTINCT r.gmap_id)          AS nearby_restaurants,
-            ROUND(AVG(r.avg_rating)::numeric, 2) AS avg_restaurant_rating
-        FROM airports a
-        JOIN pa_restaurants r
-            ON r.latitude  BETWEEN a.latitude  - 0.3 AND a.latitude  + 0.3
-           AND r.longitude BETWEEN a.longitude - 0.3 AND a.longitude + 0.3
-        WHERE a.state = 'PA'
-        GROUP BY a.iata_code, a.airport, a.city
-    ),
-    flight_stats AS (
-        SELECT
-            origin_code,
-            ROUND(AVG(weather_delay_min)::numeric, 2)       AS avg_weather_delay,
-            ROUND(AVG(late_aircraft_delay_min)::numeric, 2) AS avg_late_aircraft_delay
-        FROM flight_clean
-        WHERE weather_delay_min > 0 OR late_aircraft_delay_min > 0
-        GROUP BY origin_code
+    SELECT 
+        a.airport, 
+        a.city, 
+        b.name AS business_name, 
+        b.avg_rating, 
+        STRING_AGG(DISTINCT c.category_name, ', ') AS category_name
+    FROM mv_problematic_airports pa
+    JOIN airports a ON pa.origin_code = a.iata_code
+    JOIN mv_airport_businesses ab ON a.iata_code = ab.iata_code
+    JOIN rds_businesses b ON ab.gmap_id = b.gmap_id
+    JOIN rds_categories c ON b.gmap_id = c.gmap_id
+    WHERE b.avg_rating >= $1 
+      AND b.num_of_reviews >= $2
+      AND EXISTS (
+          SELECT 1 
+          FROM rds_categories rc2 
+          WHERE rc2.gmap_id = b.gmap_id 
+            AND rc2.category_name ILIKE '%Restaurant%'
+      )
+    GROUP BY 
+        pa.cancellation_rate, 
+        a.airport, 
+        a.city, 
+        b.gmap_id, 
+        b.name, 
+        b.avg_rating
+    ORDER BY pa.cancellation_rate DESC, b.avg_rating DESC
+    LIMIT 50;
+  `, [minRating, minReviews], (err, data) => { 
+    if (err) {
+      console.error("❌ Database Error in stranded_guide:", err.message);
+      return res.json([]);
+    }
+    console.log(`✅ Success: stranded_guide returned ${data.rows.length} rows.`);
+    res.json(data.rows); 
+  });
+}
+
+// Query 2: Reliable States & Coffee Shops
+const regional_dominance = async function(req, res) {
+  console.log(`➡️  [ENDPOINT HIT] GET ${req.originalUrl}`);
+  const maxDelay = isNaN(req.query.max_delay) ? 45 : Number(req.query.max_delay);
+
+  connection.query(`
+    SELECT 
+        sfs.state,
+        sfs.total_flights,
+        ROUND(sfs.state_avg_delay::NUMERIC, 2) AS state_avg_delay,
+        scs.num_coffee_shops,
+        ROUND(scs.avg_coffee_rating::NUMERIC, 2) AS avg_coffee_rating
+    FROM mv_state_flight_stats sfs
+    JOIN mv_state_coffee_stats scs ON sfs.state = scs.state
+    WHERE NOT EXISTS (
+        SELECT 1 
+        FROM mv_airport_delays mv
+        WHERE mv.state = sfs.state AND mv.avg_delay > $1
     )
+    ORDER BY scs.avg_coffee_rating DESC, sfs.state_avg_delay ASC
+    LIMIT 100;
+  `, [maxDelay], (err, data) => { 
+    if (err) {
+      console.error("❌ Database Error in regional_dominance:", err.message);
+      return res.json([]);
+    }
+    console.log(`✅ Success: regional_dominance returned ${data.rows.length} rows.`);
+    res.json(data.rows); 
+  });
+}
+
+// Query 3: Lodging near Delayed Airports
+const no_hotels = async function(req, res) {
+  console.log(`➡️  [ENDPOINT HIT] GET ${req.originalUrl}`);
+  connection.query(`
     SELECT
-        ar.airport,
-        ar.city,
-        fs.avg_weather_delay,
-        fs.avg_late_aircraft_delay,
-        ar.nearby_restaurants,
-        ar.avg_restaurant_rating,
-        RANK() OVER (ORDER BY fs.avg_weather_delay DESC) AS weather_delay_rank
-    FROM airport_restaurants ar
-    JOIN flight_stats fs ON ar.iata_code = fs.origin_code
-    ORDER BY weather_delay_rank;
-  `, (err, data) => {
+        a.airport,
+        a.city,
+        a.state,
+        adr.total_flights,
+        ROUND(adr.avg_delay::NUMERIC, 2) AS avg_delay,
+        ROUND(adr.severe_delay_rate::NUMERIC, 3) AS severe_delay_rate,
+        lb.name AS lodging_name,
+        lb.avg_rating,
+        lb.num_of_reviews,
+        lb.address
+    FROM mv_airport_delay_risk adr
+    JOIN airports a ON adr.origin_code = a.iata_code
+    JOIN mv_airport_nearby_businesses anb ON a.iata_code = anb.iata_code
+    JOIN mv_lodging_businesses lb ON anb.gmap_id = lb.gmap_id
+    ORDER BY adr.avg_delay DESC, lb.avg_rating DESC
+    LIMIT 50;
+  `, (err, data) => { 
     if (err) {
-      console.log(err);
-      res.json([]);
-    } else {
-      res.json(data.rows);
+      console.error("❌ Database Error in no_hotels:", err.message);
+      return res.json([]);
     }
+    console.log(`✅ Success: no_hotels returned ${data.rows.length} rows.`);
+    res.json(data.rows); 
   });
 }
 
-// Route 9: GET /states/regional_dominance (Complex)
-const regional_dominance = async function (req, res) {
-  connection.query(`
-    WITH StateDelays AS (
-        SELECT a.STATE as origin_state_code, SUM(f.is_cancelled::int) as total_cancellations
-        FROM flight_clean f
-        JOIN airports a ON f.origin_code = a.IATA_CODE
-        GROUP BY a.STATE
-    ),
-    StateBusinesses AS (
-        SELECT b.state as state_code,
-               c.category_name,
-               COUNT(*) as business_count
-        FROM rds_businesses b
-        JOIN rds_categories c ON b.gmap_id = c.gmap_id
-        WHERE b.state IS NOT NULL
-        GROUP BY b.state, c.category_name
-    ),
-    RankedBusinesses AS (
-        SELECT state_code, category_name, business_count,
-               RANK() OVER(PARTITION BY state_code ORDER BY business_count DESC) as cat_rank
-        FROM StateBusinesses
-    )
-    SELECT sd.origin_state_code, sd.total_cancellations, rb.category_name
-    FROM StateDelays sd
-    JOIN RankedBusinesses rb ON sd.origin_state_code = rb.state_code
-    WHERE rb.cat_rank = 1
-    ORDER BY sd.total_cancellations DESC;
-  `, (err, data) => {
-    if (err) {
-      console.log(err);
-      res.json([]);
-    } else {
-      res.json(data.rows);
-    }
-  });
-}
+// Query 4: Evening Delays & Local Restaurants
+const pa_restaurants = async function(req, res) {
+  console.log(`➡️  [ENDPOINT HIT] GET ${req.originalUrl}`);
+  const topN = isNaN(req.query.top_n) ? 3 : Number(req.query.top_n);
 
-// Route 10: GET /airports/no_hotels (Complex)
-const no_hotels = async function (req, res) {
-  const minDelay = req.query.min_delay || 60;
   connection.query(`
-    WITH delayed_airports AS (
+    WITH RankedResults AS (
        SELECT
            a.iata_code,
            a.airport,
            a.city,
            a.state,
-           ROUND(AVG(f.weather_delay_min)::numeric, 2) AS avg_weather_delay
-       FROM airports a
-       JOIN flight_clean f ON a.iata_code = f.origin_code
-       WHERE f.weather_delay_min > ${minDelay}
-       GROUP BY a.iata_code, a.airport, a.city, a.state
+           ead.evening_flights,
+           ROUND(ead.avg_evening_delay::NUMERIC, 2) AS avg_evening_delay,
+           ROUND(ead.delayed_evening_rate::NUMERIC, 3) AS delayed_evening_rate,
+           r.name AS restaurant_name,
+           r.avg_rating,
+           r.num_of_reviews,
+           h.day,
+           h.hours_text,
+           ROW_NUMBER() OVER (
+               PARTITION BY a.iata_code
+               ORDER BY r.avg_rating DESC, r.num_of_reviews DESC
+           ) AS restaurant_rank
+       FROM mv_evening_airport_delay ead
+       JOIN airports a ON ead.origin_code = a.iata_code
+       JOIN mv_airport_restaurants ar ON a.iata_code = ar.iata_code
+       JOIN mv_high_quality_restaurants r ON ar.gmap_id = r.gmap_id
+       JOIN rds_hours h ON r.gmap_id = h.gmap_id
+       WHERE h.day IN (
+           'Monday', 'Tuesday', 'Wednesday', 'Thursday',
+           'Friday', 'Saturday', 'Sunday'
+       )
     )
     SELECT
-       da.airport,
-       da.city,
-       da.state,
-       da.avg_weather_delay
-    FROM delayed_airports da
-    WHERE NOT EXISTS (
-       SELECT 1
-       FROM rds_businesses b
-       JOIN rds_categories c ON b.gmap_id = c.gmap_id
-       WHERE c.category_name IN ('Hotel', 'Motel')
-         AND b.avg_rating >= 4.0
-         AND b.state = da.state
-    )
-    ORDER BY da.avg_weather_delay DESC;
-  `, (err, data) => {
+       airport,
+       city,
+       state,
+       evening_flights,
+       avg_evening_delay,
+       delayed_evening_rate,
+       restaurant_name,
+       avg_rating,
+       num_of_reviews,
+       day,
+       hours_text
+    FROM RankedResults
+    WHERE restaurant_rank <= $1
+    ORDER BY delayed_evening_rate DESC, avg_rating DESC
+    LIMIT 50;
+  `, [topN], (err, data) => { 
     if (err) {
-      console.log(err);
-      res.json([]);
-    } else {
-      res.json(data.rows);
+      console.error("❌ Database Error in pa_restaurants:", err.message);
+      return res.json([]);
     }
+    console.log(`✅ Success: pa_restaurants returned ${data.rows.length} rows.`);
+    res.json(data.rows); 
   });
 }
 
@@ -314,10 +310,14 @@ module.exports = {
   cancellations,
   category_distribution,
   top_coffee_shops,
+  top_places,
   weekend_24hr,
   state_reliability,
   stranded_guide,
-  pa_restaurants,
   regional_dominance,
-  no_hotels
+  no_hotels,
+  pa_restaurants,
+  // Added Aliases so older frontend requests don't 404 crash
+  state_restaurants: pa_restaurants,
+  evening_delays: pa_restaurants
 }
