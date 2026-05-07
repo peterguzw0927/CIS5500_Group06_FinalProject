@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Container, Grid, Slider, Typography, Divider, Box, Paper, Alert, Fade } from '@mui/material';
+import { Button, Container, Grid, Slider, Typography, Divider, Box, Paper, Alert, Fade, Switch, FormControlLabel } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 const config = require('../config.json');
 
@@ -9,7 +9,8 @@ export default function FlightsPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Interactive Variables for Complex Queries
+  const [privacyMode, setPrivacyMode] = useState(false);
+
   const [minRating, setMinRating] = useState(4.5);
   const [minReviews, setMinReviews] = useState(500);
   const [maxDelayThreshold, setMaxDelayThreshold] = useState(45);
@@ -125,11 +126,17 @@ export default function FlightsPage() {
       });
   }
 
+  // Security Helper to mask PII data when Privacy Mode is ON
+  const maskData = (text) => {
+    if (!privacyMode || !text) return text;
+    return text.replace(/[a-zA-Z]/g, '*');
+  };
+
   const getColumns = () => {
     if (activeQuery === 'stranded') return [
       { field: 'airport', headerName: 'Airport', width: 250 },
-      { field: 'city', headerName: 'City', width: 150 },
-      { field: 'business_name', headerName: 'Top Restaurant', width: 250 },
+      { field: 'city', headerName: 'City', width: 150, renderCell: (p) => maskData(p.value) },
+      { field: 'business_name', headerName: 'Top Restaurant', width: 250, renderCell: (p) => maskData(p.value) },
       { field: 'avg_rating', headerName: `Rating (>${minRating})`, width: 150 },
       { field: 'category_name', headerName: 'Category', flex: 1 },
     ];
@@ -144,14 +151,22 @@ export default function FlightsPage() {
       { field: 'airport', headerName: 'Airport', width: 250 },
       { field: 'avg_delay', headerName: 'Avg Delay', width: 120 },
       { field: 'severe_delay_rate', headerName: 'Severe Delay Rate', width: 150 },
-      { field: 'lodging_name', headerName: 'Nearby Lodging', width: 250 },
+      { field: 'lodging_name', headerName: 'Nearby Lodging', width: 250, renderCell: (p) => maskData(p.value) },
       { field: 'avg_rating', headerName: 'Rating', width: 120 },
-      { field: 'address', headerName: 'Address', flex: 1 },
+      // EXTRA CREDIT 1: Google Maps Integration
+      {
+        field: 'address', headerName: 'Address (Click for Maps)', flex: 1, renderCell: (params) => (
+          privacyMode ? maskData(params.value) :
+            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(params.value)}`} target="_blank" rel="noreferrer" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 500 }}>
+              📍 {params.value}
+            </a>
+        )
+      },
     ];
     if (activeQuery === 'restaurants') return [
       { field: 'airport', headerName: 'Airport', width: 200 },
       { field: 'delayed_evening_rate', headerName: 'Evening Delay Rate', width: 180 },
-      { field: 'restaurant_name', headerName: `Top ${topN} Restaurants`, width: 250 },
+      { field: 'restaurant_name', headerName: `Top ${topN} Restaurants`, width: 250, renderCell: (p) => maskData(p.value) },
       { field: 'avg_rating', headerName: 'Rating', width: 120 },
       { field: 'day', headerName: 'Day', width: 120 },
       { field: 'hours_text', headerName: 'Hours', flex: 1 },
@@ -219,9 +234,19 @@ export default function FlightsPage() {
 
   return (
     <Container maxWidth="xl" style={{ paddingTop: '20px', paddingBottom: '60px' }}>
+      {/* Added Privacy Mode Switch to Hero Header */}
       <Box sx={{ background: 'linear-gradient(135deg, #1A365D 0%, #00B4D8 100%)', borderRadius: '16px', padding: '40px', color: 'white', mb: 4, boxShadow: '0 10px 30px rgba(0, 180, 216, 0.2)' }}>
-        <Typography variant="h3" fontWeight="800" gutterBottom>Deep Dive Analytics</Typography>
-        <Typography variant="h6" fontWeight="300" sx={{ opacity: 0.9 }}>Discover hidden insights using complex spatial bounding boxes and Window-based ranking.</Typography>
+        <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap">
+          <Box>
+            <Typography variant="h3" fontWeight="800" gutterBottom>Deep Dive Analytics</Typography>
+            <Typography variant="h6" fontWeight="300" sx={{ opacity: 0.9 }}>Discover hidden insights using complex spatial bounding boxes and Window-based ranking.</Typography>
+          </Box>
+          <FormControlLabel
+            control={<Switch color="warning" checked={privacyMode} onChange={(e) => setPrivacyMode(e.target.checked)} />}
+            label={<Typography fontWeight="bold">Privacy Mode</Typography>}
+            sx={{ background: 'rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: '30px', mt: { xs: 2, md: 0 } }}
+          />
+        </Box>
       </Box>
 
       <Paper elevation={0} sx={{ padding: '30px', borderRadius: '16px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', mb: 4 }}>

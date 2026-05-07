@@ -118,38 +118,39 @@ export default function HomePage() {
             });
     }
 
+    // Set all fields to flex: 1 so they evenly distribute the width across the DataGrid
     const getColumns = () => {
         if (activeQuery === 'most_delayed') return [
-            { field: 'flight_date', headerName: 'Date', width: 120 },
-            { field: 'origin_code', headerName: 'Airport', width: 120 },
-            { field: 'weather_delay_min', headerName: 'Weather Delay (m)', width: 160 },
-            { field: 'late_aircraft_delay_min', headerName: 'Late Aircraft Delay (m)', width: 200 },
-            { field: 'total_delay_min', headerName: 'Total Delay (m)', width: 160 },
+            { field: 'flight_date', headerName: 'Date', flex: 1 },
+            { field: 'origin_code', headerName: 'Airport', flex: 1 },
+            { field: 'weather_delay_min', headerName: 'Weather Delay (m)', flex: 1 },
+            { field: 'late_aircraft_delay_min', headerName: 'Late Aircraft Delay (m)', flex: 1 },
+            { field: 'total_delay_min', headerName: 'Total Delay (m)', flex: 1 },
         ];
         if (activeQuery === 'cancellations') return [
-            { field: 'origin_code', headerName: 'Airport Code', width: 150 },
-            { field: 'total_flights', headerName: 'Total Flights', width: 200 },
-            { field: 'total_cancelled', headerName: 'Cancelled Flights', width: 200 },
+            { field: 'origin_code', headerName: 'Airport Code', flex: 1 },
+            { field: 'total_flights', headerName: 'Total Flights', flex: 1 },
+            { field: 'total_cancelled', headerName: 'Cancelled Flights', flex: 1 },
         ];
         if (activeQuery === 'category_distribution') return [
             { field: 'category_name', headerName: 'Business Category', flex: 1 },
-            { field: 'num_businesses', headerName: 'Total Businesses', width: 200 },
+            { field: 'num_businesses', headerName: 'Total Businesses', flex: 1 },
         ];
         if (activeQuery === 'top_coffee_shops') return [
-            { field: 'name', headerName: 'Shop Name', width: 250 },
+            { field: 'name', headerName: 'Shop Name', flex: 1 },
             { field: 'address', headerName: 'Address', flex: 1 },
-            { field: 'avg_rating', headerName: 'Rating', width: 120 },
-            { field: 'num_of_reviews', headerName: 'Reviews', width: 120 },
+            { field: 'avg_rating', headerName: 'Rating', flex: 1 },
+            { field: 'num_of_reviews', headerName: 'Reviews', flex: 1 },
         ];
         if (activeQuery === 'weekend_24hr') return [
-            { field: 'name', headerName: 'Business Name', width: 250 },
+            { field: 'name', headerName: 'Business Name', flex: 1 },
             { field: 'address', headerName: 'Address', flex: 1 },
-            { field: 'hours_text', headerName: 'Hours', width: 250 },
+            { field: 'hours_text', headerName: 'Hours', flex: 1 },
         ];
         if (activeQuery === 'state_reliability') return [
-            { field: 'origin_state', headerName: 'State Code', width: 150 },
-            { field: 'avg_weather_delay', headerName: 'Avg Weather Delay (m)', width: 250 },
-            { field: 'avg_late_delay', headerName: 'Avg Late Delay (m)', width: 250 },
+            { field: 'origin_state', headerName: 'State Code', flex: 1 },
+            { field: 'avg_weather_delay', headerName: 'Avg Weather Delay (m)', flex: 1 },
+            { field: 'avg_late_delay', headerName: 'Avg Late Delay (m)', flex: 1 },
         ];
         return [];
     };

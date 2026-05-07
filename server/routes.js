@@ -90,30 +90,37 @@ const top_coffee_shops = async function (req, res) {
   });
 }
 
+// Extra Route: top_places (Mapped for interactive UI compatibility so server.js doesn't crash)
 const top_places = async function (req, res) {
   const { limit, offset } = getPagination(req);
   const category = req.query.category || 'Coffee shop';
+  const minReviews = isNaN(req.query.min_reviews) ? 100 : Number(req.query.min_reviews);
   const state = req.query.state ? req.query.state.toUpperCase() : 'NY';
 
   connection.query(`
     SELECT b.name, b.address, b.avg_rating, b.num_of_reviews
     FROM rds_businesses b
     JOIN rds_categories c ON b.gmap_id = c.gmap_id
-    WHERE c.category_name = $1 AND b.state = $2
+    WHERE c.category_name = $1 AND b.num_of_reviews >= $2 AND b.state = $3 AND b.address IS NOT NULL
     ORDER BY b.avg_rating DESC, b.num_of_reviews DESC
-    LIMIT $3 OFFSET $4;
-  `, [category, state, limit, offset], (err, data) => {
-    if (err) console.error("❌ Error in top_places:", err.message);
-    res.json(err || !data ? [] : data.rows);
+    LIMIT $4 OFFSET $5;
+  `, [category, minReviews, state, limit, offset], (err, data) => {
+    if (err) {
+      console.log(err);
+      res.json([]);
+    } else {
+      res.json(data.rows);
+    }
   });
 }
 
+// Route 5: GET /businesses/weekend_24hr
 const weekend_24hr = async function (req, res) {
   const { limit, offset } = getPagination(req);
   connection.query(`
-    SELECT b.name, b.address
+    SELECT b.name, b.address, 'Open 24 hours' AS hours_text
     FROM rds_businesses b
-    WHERE EXISTS (
+    WHERE b.address IS NOT NULL AND EXISTS (
     SELECT 1
     FROM rds_hours h
     WHERE h.gmap_id = b.gmap_id
@@ -122,10 +129,15 @@ const weekend_24hr = async function (req, res) {
       )
     LIMIT $1 OFFSET $2;
   `, [limit, offset], (err, data) => {
-    if (err) console.error("❌ Error in weekend_24hr:", err.message);
-    res.json(err || !data ? [] : data.rows);
+    if (err) {
+      console.log(err);
+      res.json([]);
+    } else {
+      res.json(data.rows);
+    }
   });
 }
+
 
 const state_reliability = async function (req, res) {
   connection.query(`
