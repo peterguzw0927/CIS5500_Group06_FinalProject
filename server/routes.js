@@ -111,10 +111,15 @@ const top_places = async function (req, res) {
 const weekend_24hr = async function (req, res) {
   const { limit, offset } = getPagination(req);
   connection.query(`
-    SELECT DISTINCT b.name, b.address, h.hours_text
+    SELECT b.name, b.address
     FROM rds_businesses b
-    JOIN rds_hours h ON b.gmap_id = h.gmap_id
-    WHERE h.day IN ('Saturday', 'Sunday') AND h.hours_text ILIKE '%Open 24 hours%'
+    WHERE EXISTS (
+    SELECT 1
+    FROM rds_hours h
+    WHERE h.gmap_id = b.gmap_id
+      AND h.day IN ('Saturday', 'Sunday')
+      AND h.hours_text ILIKE '%Open 24 hours%'
+      )
     LIMIT $1 OFFSET $2;
   `, [limit, offset], (err, data) => {
     if (err) console.error("❌ Error in weekend_24hr:", err.message);
