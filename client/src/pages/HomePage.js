@@ -15,6 +15,67 @@ export default function HomePage() {
 
     const [activeQuery, setActiveQuery] = useState('most_delayed');
 
+    const queryGroups = [
+        {
+            title: 'Flight Services',
+            queries: [
+                {
+                    id: 'most_delayed',
+                    label: 'Most Delayed',
+                    description: 'Track airports with the heaviest delay exposure.',
+                    slider: {
+                        label: 'Min Flight Delay',
+                        valueLabel: `${minDelay}m`,
+                        value: minDelay,
+                        min: 0,
+                        max: 180,
+                        step: 10,
+                        onChange: (value) => setMinDelay(value)
+                    }
+                },
+                {
+                    id: 'cancellations',
+                    label: 'Cancellations',
+                    description: 'Review airports with the highest cancellation counts.'
+                },
+                {
+                    id: 'state_reliability',
+                    label: 'State Reliability',
+                    description: 'Compare state-level average delay stability.'
+                }
+            ]
+        },
+        {
+            title: 'Business Services',
+            queries: [
+                {
+                    id: 'category_distribution',
+                    label: 'Business Categories',
+                    description: 'See how businesses are distributed by category.'
+                },
+                {
+                    id: 'top_coffee_shops',
+                    label: 'Top Coffee Shops',
+                    description: 'Filter highly reviewed coffee shops across the dataset.',
+                    slider: {
+                        label: 'Min Coffee Shop Reviews',
+                        valueLabel: `${minReviews}`,
+                        value: minReviews,
+                        min: 100,
+                        max: 2000,
+                        step: 100,
+                        onChange: (value) => setMinReviews(value)
+                    }
+                },
+                {
+                    id: 'weekend_24hr',
+                    label: '24/7 Weekend Spots',
+                    description: 'Find businesses open all weekend without interruption.'
+                }
+            ]
+        }
+    ];
+
     useEffect(() => {
         runQuery(activeQuery);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -61,14 +122,12 @@ export default function HomePage() {
         if (activeQuery === 'most_delayed') return [
             { field: 'flight_date', headerName: 'Date', width: 120 },
             { field: 'origin_code', headerName: 'Airport', width: 120 },
-            { field: 'origin_city', headerName: 'City', width: 180 },
             { field: 'weather_delay_min', headerName: 'Weather Delay (m)', width: 160 },
             { field: 'late_aircraft_delay_min', headerName: 'Late Aircraft Delay (m)', width: 200 },
             { field: 'total_delay_min', headerName: 'Total Delay (m)', width: 160 },
         ];
         if (activeQuery === 'cancellations') return [
             { field: 'origin_code', headerName: 'Airport Code', width: 150 },
-            { field: 'origin_city', headerName: 'City', width: 250 },
             { field: 'total_flights', headerName: 'Total Flights', width: 200 },
             { field: 'total_cancelled', headerName: 'Cancelled Flights', width: 200 },
         ];
@@ -95,15 +154,60 @@ export default function HomePage() {
         return [];
     };
 
-    const QueryButton = ({ id, label }) => (
-        <Grid item>
-            <Button
-                variant={activeQuery === id ? 'contained' : 'outlined'} color="primary"
-                onClick={() => runQuery(id)} disableElevation
-                sx={{ borderRadius: '24px', textTransform: 'none', fontWeight: 600, px: 3 }}
+    const QueryCard = ({ query }) => (
+        <Grid item xs={12} md={4}>
+            <Paper
+                elevation={0}
+                sx={{
+                    p: 3,
+                    borderRadius: '16px',
+                    border: activeQuery === query.id ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                    backgroundColor: activeQuery === query.id ? '#EFF6FF' : 'white',
+                    height: '100%'
+                }}
             >
-                {label}
-            </Button>
+                <Typography variant="overline" color="primary.main" fontWeight="700">
+                    {query.id.startsWith('business') || ['category_distribution', 'top_coffee_shops', 'weekend_24hr'].includes(query.id) ? 'Business Query' : 'Flight Query'}
+                </Typography>
+                <Typography variant="h6" fontWeight="700" sx={{ mt: 1, mb: 1 }}>
+                    {query.label}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ minHeight: 42, mb: 2 }}>
+                    {query.description}
+                </Typography>
+
+                {query.slider ? (
+                    <Box sx={{ mb: 2.5 }}>
+                        <Typography variant="subtitle2" fontWeight="600" color="primary.main">
+                            {query.slider.label}: {query.slider.valueLabel}
+                        </Typography>
+                        <Slider
+                            value={query.slider.value}
+                            min={query.slider.min}
+                            max={query.slider.max}
+                            step={query.slider.step}
+                            onChange={(e, value) => query.slider.onChange(value)}
+                        />
+                    </Box>
+                ) : (
+                    <Box sx={{ mb: 2.5, py: 1 }}>
+                        <Typography variant="body2" color="text.secondary">
+                            No tuning slider is needed for this service.
+                        </Typography>
+                    </Box>
+                )}
+
+                <Button
+                    fullWidth
+                    variant={activeQuery === query.id ? 'contained' : 'outlined'}
+                    color="primary"
+                    onClick={() => runQuery(query.id)}
+                    disableElevation
+                    sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 700 }}
+                >
+                    {activeQuery === query.id ? 'Viewing This Service' : 'Open This Service'}
+                </Button>
+            </Paper>
         </Grid>
     );
 
@@ -114,29 +218,15 @@ export default function HomePage() {
                 <Typography variant="h6" fontWeight="300" sx={{ opacity: 0.9 }}>Explore our 6 core queries summarizing national flight performance and business distribution.</Typography>
             </Box>
 
-            <Paper elevation={0} sx={{ padding: '30px', borderRadius: '16px', border: '1px solid #E2E8F0', mb: 4, backgroundColor: '#F8FAFC' }}>
-                <Typography variant="overline" color="textSecondary" fontWeight="700">Dynamic Tuning</Typography>
-                <Divider sx={{ mb: 3, mt: 1 }} />
-                <Grid container spacing={5}>
-                    <Grid item xs={12} sm={6}>
-                        <Typography variant="subtitle2" fontWeight="600" color="primary.main">Min Flight Delay: {minDelay}m</Typography>
-                        <Slider value={minDelay} min={0} max={180} step={10} onChange={(e, val) => setMinDelay(val)} />
+            {queryGroups.map((group) => (
+                <Paper key={group.title} elevation={0} sx={{ padding: '30px', borderRadius: '16px', border: '1px solid #E2E8F0', mb: 4, backgroundColor: '#F8FAFC' }}>
+                    <Typography variant="overline" color="textSecondary" fontWeight="700">{group.title}</Typography>
+                    <Divider sx={{ mb: 3, mt: 1 }} />
+                    <Grid container spacing={3}>
+                        {group.queries.map((query) => <QueryCard key={query.id} query={query} />)}
                     </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <Typography variant="subtitle2" fontWeight="600" color="primary.main">Min Coffee Shop Reviews: {minReviews}</Typography>
-                        <Slider value={minReviews} min={100} max={2000} step={100} onChange={(e, val) => setMinReviews(val)} />
-                    </Grid>
-                </Grid>
-            </Paper>
-
-            <Grid container spacing={2} sx={{ mb: 4 }}>
-                <QueryButton id="most_delayed" label="Most Delayed" />
-                <QueryButton id="cancellations" label="Cancellations" />
-                <QueryButton id="state_reliability" label="State Reliability" />
-                <QueryButton id="category_distribution" label="Business Categories" />
-                <QueryButton id="top_coffee_shops" label="Top Coffee Shops" />
-                <QueryButton id="weekend_24hr" label="24/7 Weekend Spots" />
-            </Grid>
+                </Paper>
+            ))}
 
             <Fade in={!!errorMsg}><Box mb={3}>{errorMsg && <Alert severity="error" variant="filled">{errorMsg}</Alert>}</Box></Fade>
 

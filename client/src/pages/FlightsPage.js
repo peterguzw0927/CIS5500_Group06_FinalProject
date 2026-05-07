@@ -17,6 +17,81 @@ export default function FlightsPage() {
 
   const [activeQuery, setActiveQuery] = useState('stranded');
 
+  const queryCards = [
+    {
+      id: 'stranded',
+      label: 'Stranded Traveler Guide',
+      description: 'Match delayed airports with strong nearby restaurant options.',
+      service: 'Airport Recovery Service',
+      sliders: [
+        {
+          label: 'Min Restaurant Rating',
+          valueLabel: `${minRating}`,
+          value: minRating,
+          min: 4.0,
+          max: 5.0,
+          step: 0.1,
+          onChange: (value) => setMinRating(value),
+          color: 'primary.main'
+        },
+        {
+          label: 'Min Reviews',
+          valueLabel: `${minReviews}`,
+          value: minReviews,
+          min: 100,
+          max: 2000,
+          step: 100,
+          onChange: (value) => setMinReviews(value),
+          color: 'primary.main'
+        }
+      ]
+    },
+    {
+      id: 'regional',
+      label: 'Reliable States & Coffee',
+      description: 'Compare states with stable delays against coffee density.',
+      service: 'Regional Benchmark Service',
+      sliders: [
+        {
+          label: 'Reliable State Threshold',
+          valueLabel: `${maxDelayThreshold}m`,
+          value: maxDelayThreshold,
+          min: 15,
+          max: 90,
+          step: 5,
+          onChange: (value) => setMaxDelayThreshold(value),
+          color: 'warning.dark',
+          sliderColor: 'warning'
+        }
+      ]
+    },
+    {
+      id: 'nohotels',
+      label: 'Airport Lodging Desert',
+      description: 'Identify delayed airports with weak lodging support.',
+      service: 'Lodging Gap Service',
+      sliders: []
+    },
+    {
+      id: 'restaurants',
+      label: 'Evening Dinner Scrambles',
+      description: 'Surface the best late-day dining options near delayed airports.',
+      service: 'Restaurant Coverage Service',
+      sliders: [
+        {
+          label: 'Top N Evening Restaurants',
+          valueLabel: `${topN}`,
+          value: topN,
+          min: 1,
+          max: 5,
+          step: 1,
+          onChange: (value) => setTopN(value),
+          color: 'primary.main'
+        }
+      ]
+    }
+  ];
+
   useEffect(() => {
     runQuery(activeQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -84,15 +159,61 @@ export default function FlightsPage() {
     return [];
   };
 
-  const QueryButton = ({ id, label }) => (
-    <Grid item>
-      <Button
-        variant={activeQuery === id ? 'contained' : 'outlined'} color="secondary"
-        onClick={() => runQuery(id)} disableElevation
-        sx={{ borderRadius: '24px', textTransform: 'none', fontWeight: 600, px: 3 }}
+  const QueryCard = ({ query }) => (
+    <Grid item xs={12} md={6}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: 3,
+          borderRadius: '16px',
+          border: activeQuery === query.id ? '2px solid #DC2626' : '1px solid #CBD5E1',
+          backgroundColor: activeQuery === query.id ? '#FEF2F2' : 'white',
+          height: '100%'
+        }}
       >
-        {label}
-      </Button>
+        <Typography variant="overline" color="secondary.main" fontWeight="700">
+          {query.service}
+        </Typography>
+        <Typography variant="h6" fontWeight="700" sx={{ mt: 1, mb: 1 }}>
+          {query.label}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+          {query.description}
+        </Typography>
+
+        {query.sliders.length > 0 ? query.sliders.map((slider) => (
+          <Box key={slider.label} sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" fontWeight="600" color={slider.color}>
+              {slider.label}: {slider.valueLabel}
+            </Typography>
+            <Slider
+              value={slider.value}
+              min={slider.min}
+              max={slider.max}
+              step={slider.step}
+              color={slider.sliderColor}
+              onChange={(e, value) => slider.onChange(value)}
+            />
+          </Box>
+        )) : (
+          <Box sx={{ py: 1, mb: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              No tuning slider is needed for this service.
+            </Typography>
+          </Box>
+        )}
+
+        <Button
+          fullWidth
+          variant={activeQuery === query.id ? 'contained' : 'outlined'}
+          color="secondary"
+          onClick={() => runQuery(query.id)}
+          disableElevation
+          sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 700, mt: 1 }}
+        >
+          {activeQuery === query.id ? 'Viewing This Service' : 'Open This Service'}
+        </Button>
+      </Paper>
     </Grid>
   );
 
@@ -104,34 +225,12 @@ export default function FlightsPage() {
       </Box>
 
       <Paper elevation={0} sx={{ padding: '30px', borderRadius: '16px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC', mb: 4 }}>
-        <Typography variant="overline" color="textSecondary" fontWeight="700">Dynamic Tuning Parameters</Typography>
+        <Typography variant="overline" color="textSecondary" fontWeight="700">Service Controls</Typography>
         <Divider sx={{ mb: 3, mt: 1 }} />
-        <Grid container spacing={5}>
-          <Grid item xs={12} sm={4}>
-            <Typography variant="subtitle2" fontWeight="600" color="primary.main">Min Restaurant Rating: {minRating}</Typography>
-            <Slider value={minRating} min={4.0} max={5.0} step={0.1} onChange={(e, val) => setMinRating(val)} />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <Typography variant="subtitle2" fontWeight="600" color="primary.main">Min Reviews: {minReviews}</Typography>
-            <Slider value={minReviews} min={100} max={2000} step={100} onChange={(e, val) => setMinReviews(val)} />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <Typography variant="subtitle2" fontWeight="600" color="warning.dark">Reliable State Threshold: {maxDelayThreshold}m</Typography>
-            <Slider value={maxDelayThreshold} min={15} max={90} step={5} onChange={(e, val) => setMaxDelayThreshold(val)} color="warning" />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <Typography variant="subtitle2" fontWeight="600" color="primary.main">Top N Evening Restaurants: {topN}</Typography>
-            <Slider value={topN} min={1} max={5} step={1} onChange={(e, val) => setTopN(val)} />
-          </Grid>
+        <Grid container spacing={3}>
+          {queryCards.map((query) => <QueryCard key={query.id} query={query} />)}
         </Grid>
       </Paper>
-
-      <Grid container spacing={2} sx={{ mb: 4 }}>
-        <QueryButton id="stranded" label="Stranded Traveler Guide" />
-        <QueryButton id="regional" label="Reliable States & Coffee" />
-        <QueryButton id="nohotels" label="Airport Lodging Desert" />
-        <QueryButton id="restaurants" label="Evening Dinner Scrambles" />
-      </Grid>
 
       <Fade in={!!errorMsg}><Box mb={3}>{errorMsg && <Alert severity="error" variant="filled">{errorMsg}</Alert>}</Box></Fade>
 
