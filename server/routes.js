@@ -31,7 +31,7 @@ const most_delayed = async function(req, res) {
   const minDelay = isNaN(req.query.min_delay) ? 0 : Number(req.query.min_delay);
 
   connection.query(`
-    SELECT flight_date, origin_code, origin_city, weather_delay_min, late_aircraft_delay_min, 
+    SELECT flight_date, origin_code, weather_delay_min, late_aircraft_delay_min, 
            (weather_delay_min+late_aircraft_delay_min) AS total_delay_min 
     FROM flight_clean
     WHERE (weather_delay_min + late_aircraft_delay_min) > $1
@@ -46,11 +46,11 @@ const most_delayed = async function(req, res) {
 const cancellations = async function(req, res) {
   const { limit, offset } = getPagination(req);
   connection.query(`
-    SELECT origin_code, origin_city,
+    SELECT origin_code,
            COUNT(flight_id) as total_flights,
            SUM(CASE WHEN is_cancelled THEN 1 ELSE 0 END) as total_cancelled
     FROM flight_clean 
-    GROUP BY origin_code, origin_city
+    GROUP BY origin_code
     ORDER BY total_cancelled DESC
     LIMIT $1 OFFSET $2;
   `, [limit, offset], (err, data) => { 
@@ -124,9 +124,14 @@ const weekend_24hr = async function(req, res) {
 
 const state_reliability = async function(req, res) {
   connection.query(`
-    SELECT origin_state, AVG(weather_delay_min) as avg_weather_delay 
-    FROM flight_clean
-    GROUP BY origin_state
+    SELECT 
+    ol.origin_state,
+    AVG(fc.weather_delay_min) AS avg_weather_delay,
+    AVG(fc.late_aircraft_delay_min) AS avg_late_delay
+    FROM flight_clean fc
+    JOIN origin_locations ol
+        ON fc.origin_code = ol.origin_code
+    GROUP BY ol.origin_state
     ORDER BY avg_weather_delay DESC;
   `, (err, data) => { 
     if (err) console.error("❌ Error in state_reliability:", err.message);
