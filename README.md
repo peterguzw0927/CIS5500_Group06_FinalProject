@@ -8,29 +8,6 @@ This application integrates two data domains:
 - **Flight Services**: Query historical flight data to identify delays, cancellations, and reliability trends across airports and states
 - **Business Services**: Discover and filter restaurants and coffee shops by rating, review count, and location
 
-### Key Features
-- 📊 Interactive data exploration with pagination and filtering
-- 🚀 Optimized API caching layer (10-minute TTL) for improved performance
-- 🎨 Responsive Material-UI design
-- 🔒 Privacy mode for sensitive operations
-- 📈 Real-time data visualization with DataGrid tables
-- 🎯 "Stranded Traveler Guide" - matches delayed airports with strong nearby restaurant options
-
-## Tech Stack
-
-### Frontend
-- **React** 18.2 with React Router for navigation
-- **Material-UI (MUI)** v5 for component library and data visualization
-- **DataGrid** for dynamic table rendering
-- **Recharts** for chart visualization
-
-### Backend
-- **Node.js** with Express.js framework
-- **PostgreSQL** database with connection pooling
-- **API Caching Middleware** for performance optimization
-- **Jest** for unit testing
-- **Nodemon** for development auto-reload
-
 ## Prerequisites
 
 Before running the project locally, ensure you have:
@@ -75,7 +52,7 @@ Start the backend server:
 npm start
 ```
 
-The server will run on `http://localhost:5000` by default.
+The server will run on `http://localhost:8080` by default.
 
 ### 3. Frontend Setup
 
@@ -92,7 +69,7 @@ npm install
 Update API configuration if needed in `src/config.json`:
 ```json
 {
-  "server_host": "http://localhost:5000"
+  "server_url": "http://localhost:8080"
 }
 ```
 
@@ -166,11 +143,18 @@ CIS5500_Group06_FinalProject/
 ## Available Routes
 
 ### Flight Queries
-- `GET /most_delayed` - Get most delayed flights with optional `min_delay` filter
-- `GET /cancellations` - Get airport cancellation statistics
-- `GET /state_reliability` - Compare state-level delay stability
+- `GET /flights/most_delayed` - Get most delayed flights with optional `min_delay` filter
+- `GET /airports/cancellations` - Get airport cancellation statistics
+- `GET /flights/state_reliability` - Compare state-level delay stability
 
 ### Business Queries
-- `GET /category_distribution` - Get distribution of business categories
-- `GET /top_coffee_shops` - Get top-rated coffee shops with `min_reviews` filter
-- `GET /top_places` - Get top businesses by category and state
+- `GET /businesses/category_distribution` - Get distribution of business categories
+- `GET /businesses/top_coffee_shops` - Get top-rated coffee shops with `min_reviews` filter
+- `GET /businesses/weekend_24hr` - Get weekend 24-hour businesses
+- `GET /businesses/top_places` - Get top businesses by category and state
+
+### Complex / Insight Queries
+- `GET /airports/stranded_guide` - Get stranded traveler restaurant recommendations
+- `GET /states/regional_dominance` - Compare reliable states with coffee shop strength
+- `GET /airports/no_hotels` - Identify delayed airports with limited lodging options
+- `GET /airports/pa_restaurants` - Get top evening restaurants near delayed airports
