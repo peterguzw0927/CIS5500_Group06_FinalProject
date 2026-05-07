@@ -296,10 +296,6 @@ const pa_restaurants = async function (req, res) {
        JOIN mv_airport_restaurants ar ON a.iata_code = ar.iata_code
        JOIN mv_high_quality_restaurants r ON ar.gmap_id = r.gmap_id
        JOIN rds_hours h ON r.gmap_id = h.gmap_id
-       WHERE h.day IN (
-           'Monday', 'Tuesday', 'Wednesday', 'Thursday',
-           'Friday', 'Saturday', 'Sunday'
-       )
     )
     SELECT
        airport,

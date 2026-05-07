@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Container, Grid, Slider, Typography, Divider, Box, Paper, Alert, Fade } from '@mui/material';
+import { Button, Container, Grid, Slider, Typography, Divider, Box, Paper, Alert, Fade, Switch, FormControlLabel } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 const config = require('../config.json');
 
@@ -8,6 +8,9 @@ export default function HomePage() {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
+
+    // EXTRA CREDIT 2: Application Security (Privacy Mode)
+    const [privacyMode, setPrivacyMode] = useState(false);
 
     // Interactive Variables for Simple Queries
     const [minDelay, setMinDelay] = useState(30);
@@ -101,7 +104,10 @@ export default function HomePage() {
             route = `/flights/state_reliability`;
         }
 
-        fetch(`${config.server_url}${route}`)
+        // FIX: Use server_url if it exists (for Vercel deployment), otherwise fallback to localhost
+        const baseUrl = config.server_url || `http://${config.server_host}:${config.server_port}`;
+
+        fetch(`${baseUrl}${route}`)
             .then(res => res.json())
             .then(resJson => {
                 if (!resJson || resJson.length === 0) setData([]);
@@ -118,7 +124,13 @@ export default function HomePage() {
             });
     }
 
-    // Set all fields to flex: 1 so they evenly distribute the width across the DataGrid
+    // Security Helper to mask PII data when Privacy Mode is ON
+    const maskData = (text) => {
+        if (!privacyMode || !text) return text;
+        return text.replace(/[a-zA-Z]/g, '*'); // Replaces all letters with asterisks
+    };
+
+    // Set all fields to flex: 1 AND restore the Extra Credit renderCell logic!
     const getColumns = () => {
         if (activeQuery === 'most_delayed') return [
             { field: 'flight_date', headerName: 'Date', flex: 1 },
@@ -137,14 +149,30 @@ export default function HomePage() {
             { field: 'num_businesses', headerName: 'Total Businesses', flex: 1 },
         ];
         if (activeQuery === 'top_coffee_shops') return [
-            { field: 'name', headerName: 'Shop Name', flex: 1 },
-            { field: 'address', headerName: 'Address', flex: 1 },
+            { field: 'name', headerName: 'Shop Name', flex: 1, renderCell: (p) => maskData(p.value) },
+            // EXTRA CREDIT 1: Google Maps Integration (added safety fallback for encodeURIComponent)
+            {
+                field: 'address', headerName: 'Address (Click for Maps)', flex: 1, renderCell: (params) => (
+                    privacyMode ? maskData(params.value) :
+                        <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(params.value || '')}`} target="_blank" rel="noreferrer" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 500 }}>
+                            📍 {params.value}
+                        </a>
+                )
+            },
             { field: 'avg_rating', headerName: 'Rating', flex: 1 },
             { field: 'num_of_reviews', headerName: 'Reviews', flex: 1 },
         ];
         if (activeQuery === 'weekend_24hr') return [
-            { field: 'name', headerName: 'Business Name', flex: 1 },
-            { field: 'address', headerName: 'Address', flex: 1 },
+            { field: 'name', headerName: 'Business Name', flex: 1, renderCell: (p) => maskData(p.value) },
+            // EXTRA CREDIT 1: Google Maps Integration (added safety fallback for encodeURIComponent)
+            {
+                field: 'address', headerName: 'Address (Click for Maps)', flex: 1, renderCell: (params) => (
+                    privacyMode ? maskData(params.value) :
+                        <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(params.value || '')}`} target="_blank" rel="noreferrer" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 500 }}>
+                            📍 {params.value}
+                        </a>
+                )
+            },
             { field: 'hours_text', headerName: 'Hours', flex: 1 },
         ];
         if (activeQuery === 'state_reliability') return [
@@ -215,8 +243,17 @@ export default function HomePage() {
     return (
         <Container maxWidth="xl" style={{ paddingTop: '20px', paddingBottom: '60px' }}>
             <Box sx={{ background: 'linear-gradient(135deg, #047857 0%, #10B981 100%)', borderRadius: '16px', padding: '40px', color: 'white', mb: 4, boxShadow: '0 10px 30px rgba(16, 185, 129, 0.2)' }}>
-                <Typography variant="h3" fontWeight="800" gutterBottom>Standard Travel Analytics</Typography>
-                <Typography variant="h6" fontWeight="300" sx={{ opacity: 0.9 }}>Explore our 6 core queries summarizing national flight performance and business distribution.</Typography>
+                <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap">
+                    <Box>
+                        <Typography variant="h3" fontWeight="800" gutterBottom>Standard Travel Analytics</Typography>
+                        <Typography variant="h6" fontWeight="300" sx={{ opacity: 0.9 }}>Explore our 6 core queries summarizing national flight performance and business distribution.</Typography>
+                    </Box>
+                    <FormControlLabel
+                        control={<Switch color="warning" checked={privacyMode} onChange={(e) => setPrivacyMode(e.target.checked)} />}
+                        label={<Typography fontWeight="bold">Privacy Mode</Typography>}
+                        sx={{ background: 'rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: '30px', mt: { xs: 2, md: 0 } }}
+                    />
+                </Box>
             </Box>
 
             {queryGroups.map((group) => (
