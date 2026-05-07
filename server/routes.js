@@ -26,7 +26,7 @@ const getPagination = (req) => {
 // SIMPLE / STATIC QUERIES
 // =========================================================================
 
-const most_delayed = async function(req, res) {
+const most_delayed = async function (req, res) {
   const { limit, offset } = getPagination(req);
   const minDelay = isNaN(req.query.min_delay) ? 0 : Number(req.query.min_delay);
 
@@ -37,13 +37,13 @@ const most_delayed = async function(req, res) {
     WHERE (weather_delay_min + late_aircraft_delay_min) > $1
     ORDER BY total_delay_min DESC
     LIMIT $2 OFFSET $3;
-  `, [minDelay, limit, offset], (err, data) => { 
+  `, [minDelay, limit, offset], (err, data) => {
     if (err) console.error("❌ Error in most_delayed:", err.message);
-    res.json(err || !data ? [] : data.rows); 
+    res.json(err || !data ? [] : data.rows);
   });
 }
 
-const cancellations = async function(req, res) {
+const cancellations = async function (req, res) {
   const { limit, offset } = getPagination(req);
   connection.query(`
     SELECT origin_code,
@@ -53,13 +53,13 @@ const cancellations = async function(req, res) {
     GROUP BY origin_code
     ORDER BY total_cancelled DESC
     LIMIT $1 OFFSET $2;
-  `, [limit, offset], (err, data) => { 
+  `, [limit, offset], (err, data) => {
     if (err) console.error("❌ Error in cancellations:", err.message);
-    res.json(err || !data ? [] : data.rows); 
+    res.json(err || !data ? [] : data.rows);
   });
 }
 
-const category_distribution = async function(req, res) {
+const category_distribution = async function (req, res) {
   const { limit, offset } = getPagination(req);
   connection.query(`
     SELECT category_name, COUNT(gmap_id) as num_businesses
@@ -67,16 +67,16 @@ const category_distribution = async function(req, res) {
     GROUP BY category_name
     ORDER BY num_businesses DESC
     LIMIT $1 OFFSET $2;
-  `, [limit, offset], (err, data) => { 
+  `, [limit, offset], (err, data) => {
     if (err) console.error("❌ Error in category_distribution:", err.message);
-    res.json(err || !data ? [] : data.rows); 
+    res.json(err || !data ? [] : data.rows);
   });
 }
 
-const top_coffee_shops = async function(req, res) {
+const top_coffee_shops = async function (req, res) {
   const { limit, offset } = getPagination(req);
   const minReviews = isNaN(req.query.min_reviews) ? 500 : Number(req.query.min_reviews);
-  
+
   connection.query(`
     SELECT b.name, b.address, b.avg_rating, b.num_of_reviews
     FROM rds_businesses b
@@ -84,17 +84,17 @@ const top_coffee_shops = async function(req, res) {
     WHERE c.category_name = 'Coffee shop' AND b.num_of_reviews > $1
     ORDER BY b.avg_rating DESC, b.num_of_reviews DESC
     LIMIT $2 OFFSET $3;
-  `, [minReviews, limit, offset], (err, data) => { 
+  `, [minReviews, limit, offset], (err, data) => {
     if (err) console.error("❌ Error in top_coffee_shops:", err.message);
-    res.json(err || !data ? [] : data.rows); 
+    res.json(err || !data ? [] : data.rows);
   });
 }
 
-const top_places = async function(req, res) {
+const top_places = async function (req, res) {
   const { limit, offset } = getPagination(req);
   const category = req.query.category || 'Coffee shop';
   const state = req.query.state ? req.query.state.toUpperCase() : 'NY';
-  
+
   connection.query(`
     SELECT b.name, b.address, b.avg_rating, b.num_of_reviews
     FROM rds_businesses b
@@ -102,13 +102,13 @@ const top_places = async function(req, res) {
     WHERE c.category_name = $1 AND b.state = $2
     ORDER BY b.avg_rating DESC, b.num_of_reviews DESC
     LIMIT $3 OFFSET $4;
-  `, [category, state, limit, offset], (err, data) => { 
+  `, [category, state, limit, offset], (err, data) => {
     if (err) console.error("❌ Error in top_places:", err.message);
-    res.json(err || !data ? [] : data.rows); 
+    res.json(err || !data ? [] : data.rows);
   });
 }
 
-const weekend_24hr = async function(req, res) {
+const weekend_24hr = async function (req, res) {
   const { limit, offset } = getPagination(req);
   connection.query(`
     SELECT DISTINCT b.name, b.address, h.hours_text
@@ -116,13 +116,13 @@ const weekend_24hr = async function(req, res) {
     JOIN rds_hours h ON b.gmap_id = h.gmap_id
     WHERE h.day IN ('Saturday', 'Sunday') AND h.hours_text ILIKE '%Open 24 hours%'
     LIMIT $1 OFFSET $2;
-  `, [limit, offset], (err, data) => { 
+  `, [limit, offset], (err, data) => {
     if (err) console.error("❌ Error in weekend_24hr:", err.message);
-    res.json(err || !data ? [] : data.rows); 
+    res.json(err || !data ? [] : data.rows);
   });
 }
 
-const state_reliability = async function(req, res) {
+const state_reliability = async function (req, res) {
   connection.query(`
     SELECT 
     ol.origin_state,
@@ -133,9 +133,9 @@ const state_reliability = async function(req, res) {
         ON fc.origin_code = ol.origin_code
     GROUP BY ol.origin_state
     ORDER BY avg_weather_delay DESC;
-  `, (err, data) => { 
+  `, (err, data) => {
     if (err) console.error("❌ Error in state_reliability:", err.message);
-    res.json(err || !data ? [] : data.rows); 
+    res.json(err || !data ? [] : data.rows);
   });
 }
 
@@ -144,11 +144,11 @@ const state_reliability = async function(req, res) {
 // =========================================================================
 
 // Query 1: Problematic Airports & Top Restaurants
-const stranded_guide = async function(req, res) {
+const stranded_guide = async function (req, res) {
   console.log(`➡️  [ENDPOINT HIT] GET ${req.originalUrl}`);
   const minRating = isNaN(req.query.rating) ? 4.5 : Number(req.query.rating);
   const minReviews = isNaN(req.query.reviews) ? 500 : Number(req.query.reviews);
-  
+
   connection.query(`
     SELECT 
         a.airport, 
@@ -178,18 +178,18 @@ const stranded_guide = async function(req, res) {
         b.avg_rating
     ORDER BY pa.cancellation_rate DESC, b.avg_rating DESC
     LIMIT 50;
-  `, [minRating, minReviews], (err, data) => { 
+  `, [minRating, minReviews], (err, data) => {
     if (err) {
       console.error("❌ Database Error in stranded_guide:", err.message);
       return res.json([]);
     }
     console.log(`✅ Success: stranded_guide returned ${data.rows.length} rows.`);
-    res.json(data.rows); 
+    res.json(data.rows);
   });
 }
 
 // Query 2: Reliable States & Coffee Shops
-const regional_dominance = async function(req, res) {
+const regional_dominance = async function (req, res) {
   console.log(`➡️  [ENDPOINT HIT] GET ${req.originalUrl}`);
   const maxDelay = isNaN(req.query.max_delay) ? 45 : Number(req.query.max_delay);
 
@@ -209,18 +209,18 @@ const regional_dominance = async function(req, res) {
     )
     ORDER BY scs.avg_coffee_rating DESC, sfs.state_avg_delay ASC
     LIMIT 100;
-  `, [maxDelay], (err, data) => { 
+  `, [maxDelay], (err, data) => {
     if (err) {
       console.error("❌ Database Error in regional_dominance:", err.message);
       return res.json([]);
     }
     console.log(`✅ Success: regional_dominance returned ${data.rows.length} rows.`);
-    res.json(data.rows); 
+    res.json(data.rows);
   });
 }
 
 // Query 3: Lodging near Delayed Airports
-const no_hotels = async function(req, res) {
+const no_hotels = async function (req, res) {
   console.log(`➡️  [ENDPOINT HIT] GET ${req.originalUrl}`);
   connection.query(`
     SELECT
@@ -240,18 +240,18 @@ const no_hotels = async function(req, res) {
     JOIN mv_lodging_businesses lb ON anb.gmap_id = lb.gmap_id
     ORDER BY adr.avg_delay DESC, lb.avg_rating DESC
     LIMIT 50;
-  `, (err, data) => { 
+  `, (err, data) => {
     if (err) {
       console.error("❌ Database Error in no_hotels:", err.message);
       return res.json([]);
     }
     console.log(`✅ Success: no_hotels returned ${data.rows.length} rows.`);
-    res.json(data.rows); 
+    res.json(data.rows);
   });
 }
 
 // Query 4: Evening Delays & Local Restaurants
-const pa_restaurants = async function(req, res) {
+const pa_restaurants = async function (req, res) {
   console.log(`➡️  [ENDPOINT HIT] GET ${req.originalUrl}`);
   const topN = isNaN(req.query.top_n) ? 3 : Number(req.query.top_n);
 
@@ -300,13 +300,13 @@ const pa_restaurants = async function(req, res) {
     WHERE restaurant_rank <= $1
     ORDER BY delayed_evening_rate DESC, avg_rating DESC
     LIMIT 50;
-  `, [topN], (err, data) => { 
+  `, [topN], (err, data) => {
     if (err) {
       console.error("❌ Database Error in pa_restaurants:", err.message);
       return res.json([]);
     }
     console.log(`✅ Success: pa_restaurants returned ${data.rows.length} rows.`);
-    res.json(data.rows); 
+    res.json(data.rows);
   });
 }
 

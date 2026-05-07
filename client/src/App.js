@@ -23,7 +23,7 @@ export default function App() {
         <NavBar />
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/flights" element={<FlightsPage />} />
+          <Route path="/advanced" element={<FlightsPage />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
