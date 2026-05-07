@@ -109,7 +109,7 @@ export default function FlightsPage() {
     else if (queryName === 'nohotels') route = `/airports/no_hotels`;
     else if (queryName === 'restaurants') route = `/airports/pa_restaurants?top_n=${topN}`;
 
-    fetch(`http://${config.server_host}:${config.server_port}${route}`)
+    fetch(`${config.server_url}${route}`)
       .then(res => res.json())
       .then(resJson => {
         if (!resJson || resJson.length === 0) setData([]);

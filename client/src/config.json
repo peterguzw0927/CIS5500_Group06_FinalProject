@@ -1,4 +1,3 @@
 {
-  "server_host": "localhost",
-  "server_port": "8080"
+  "server_url": "https://cis5500-group06-finalproject.onrender.com"
 }
