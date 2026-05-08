@@ -2,6 +2,9 @@
 
 A full-stack web application combining flight delay analysis with local business insights. This project helps travelers make informed decisions by analyzing airport delays and recommending nearby dining options when flights are delayed.
 
+Weblink: https://cis-5500-group06-final-project.vercel.app/
+Video Demo Link: https://drive.google.com/file/d/1JpWiIwkyDl1r0EGsvgX4FByuHNiby3cn/view?usp=sharing
+
 ## Project Description
 
 This application integrates two data domains:
